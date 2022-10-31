@@ -9,6 +9,11 @@
 </head>
 
 <body>
+    <div id="app">
+    <div>    {{name}}</div>
+    
+    <span> {{age}}</span>
+</div>
     <script src="vue.js"></script>
     <script>
         const vm = new Vue({
@@ -22,14 +27,13 @@
                     },
                     arr:['eat','fuck',{a:2}]
                 }
-            }
-        })
-        vm.name = "mepo"
-        vm.address = {
-            num:20
-        }
-        vm.arr.unshift({s:1});
-        console.log(vm.arr);
+            },
+            template:'<div>Hello</div>'
+            // el:'#app'
+            
+        });
+        // VDOM 高性能地更新html变化，核心是创建语法树
+        vm.$mount('#app');
     </script>
 </body>
 

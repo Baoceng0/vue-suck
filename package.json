@@ -15,5 +15,8 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "@rollup/plugin-node-resolve": "^15.0.1"
+  }
 }
