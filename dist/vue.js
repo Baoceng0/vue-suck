@@ -168,8 +168,12 @@
     }
   }
 
+  // Regular Expressions needed
+
   function compileToFunction(template) {
-    console.log(template);
+    // parse template into an AST Tree
+
+    // console.log(template)
   }
 
   function initMixin(Vue) {
@@ -202,7 +206,7 @@
         }
         // console.log(template);
         if (template) {
-          var render = compileToFunction(template);
+          var render = compileToFunction();
           options.render = render;
         }
       }
