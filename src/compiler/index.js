@@ -10,8 +10,37 @@ const startTagClose = /^\s*(\/?)>/;
 const defaultTagRe = /\{\{((?:.|\r?\n)+?)\}\}/g;
 
 function parseHtml(html){
+    function advance(len){
+        html = html.substring(len);
+    }
+    function parseStartTag(){
+        const start = html.match(startTagOpen);
+
+        if(start){
+            const match = {
+                tagName: start[1], // tag name
+                attrs:[]
+            }
+            advance(start[0].length);
+        }
+
+        // match all attributes until closeTag
+        let attrs, end;
+        while(!(end = html.match(startTagClose)) && (attrs = html.match(attribute))){
+            advance(attrs[0].length);
+            match.attrs.push({name:attrs[1],value:attrs[3] || attrs[4] || attrs[5]});
+        }
+
+        return false;   
+    }
     while(html){
-        html.indexOf('<') // if idx == 0, it starts at tag
+        let textEnd = html.indexOf('<') // if idx == 0, it starts at tag, else it is the end of text
+
+        if(textEnd == 0){
+            const tagmatches = parseStartTag();
+            break;
+        }
+
         
     }
 }
