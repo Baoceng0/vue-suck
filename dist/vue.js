@@ -35,6 +35,52 @@
     });
     return Constructor;
   }
+  function _slicedToArray(arr, i) {
+    return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest();
+  }
+  function _arrayWithHoles(arr) {
+    if (Array.isArray(arr)) return arr;
+  }
+  function _iterableToArrayLimit(arr, i) {
+    var _i = arr == null ? null : typeof Symbol !== "undefined" && arr[Symbol.iterator] || arr["@@iterator"];
+    if (_i == null) return;
+    var _arr = [];
+    var _n = true;
+    var _d = false;
+    var _s, _e;
+    try {
+      for (_i = _i.call(arr); !(_n = (_s = _i.next()).done); _n = true) {
+        _arr.push(_s.value);
+        if (i && _arr.length === i) break;
+      }
+    } catch (err) {
+      _d = true;
+      _e = err;
+    } finally {
+      try {
+        if (!_n && _i["return"] != null) _i["return"]();
+      } finally {
+        if (_d) throw _e;
+      }
+    }
+    return _arr;
+  }
+  function _unsupportedIterableToArray(o, minLen) {
+    if (!o) return;
+    if (typeof o === "string") return _arrayLikeToArray(o, minLen);
+    var n = Object.prototype.toString.call(o).slice(8, -1);
+    if (n === "Object" && o.constructor) n = o.constructor.name;
+    if (n === "Map" || n === "Set") return Array.from(o);
+    if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen);
+  }
+  function _arrayLikeToArray(arr, len) {
+    if (len == null || len > arr.length) len = arr.length;
+    for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
+    return arr2;
+  }
+  function _nonIterableRest() {
+    throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+  }
 
   var oldArrayProto = Array.prototype;
   var newArrayProto = Object.create(oldArrayProto);
@@ -169,11 +215,203 @@
   }
 
   // Regular Expressions needed
+  // https://regexper.com/ 
+  var ncname = "[a-zA-Z_][\\-\\.0-9_a-zA-Z]*";
+  var qnameCapture = "((?:".concat(ncname, "\\:)?").concat(ncname, ")");
+  var startTagOpen = new RegExp("^<".concat(qnameCapture)); // 他匹配到的分组是一个 标签名  <xxx 匹配到的是开始 标签的名字
+  var endTag = new RegExp("^<\\/".concat(qnameCapture, "[^>]*>"));
+  var attribute = /^\s*([^\s"'<>\/=]+)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/;
+  // console.log(attribute);
+  var startTagClose = /^\s*(\/?)>/;
+  function parseHtml(html) {
+    var ELEMENT_TYPE = 1;
+    var TEXT_TYPE = 3;
+    var stack = [];
+    var curParent;
+    var root;
+    function createASTelement(tag, attrs) {
+      return {
+        tag: tag,
+        type: ELEMENT_TYPE,
+        children: [],
+        attrs: attrs,
+        parent: null
+      };
+    }
+    function start(tag, attrs) {
+      var node = createASTelement(tag, attrs);
+      if (!root) {
+        root = node;
+      }
+      if (curParent) {
+        node.parent = curParent;
+        curParent.children.push(node);
+      }
+      stack.push(node);
+      curParent = node;
+      // console.log(tag,attrs,'begin');
+    }
 
+    function end(tag) {
+      stack.pop();
+      curParent = stack[stack.length - 1];
+      // console.log(node,'end');
+    }
+
+    function chars(text) {
+      text = text.replace(/\s/g, "");
+      text && curParent.children.push({
+        type: TEXT_TYPE,
+        text: text,
+        parent: curParent
+      });
+      // console.log(text,'text');
+    }
+
+    function advance(len) {
+      html = html.substring(len);
+    }
+    function parseStartTag() {
+      var start = html.match(startTagOpen);
+      if (start) {
+        var match = {
+          tagName: start[1],
+          // tag name
+          attrs: []
+        };
+        advance(start[0].length);
+        // console.log(match, html)
+        // match all attributes until closeTag
+        var attrs, _end;
+        while (!(_end = html.match(startTagClose)) && (attrs = html.match(attribute))) {
+          advance(attrs[0].length);
+          match.attrs.push({
+            name: attrs[1],
+            value: attrs[3] || attrs[4] || attrs[5] || true
+          });
+        }
+        if (_end) {
+          advance(_end[0].length);
+        }
+        // console.log(match)
+        return match;
+      }
+      return false;
+    }
+    while (html) {
+      var textEnd = html.indexOf('<'); // if idx == 0, it starts at tag, else it is the end of text
+
+      if (textEnd == 0) {
+        var startTagMatches = parseStartTag();
+        console.log(startTagMatches);
+        if (startTagMatches) {
+          start(startTagMatches.tagName, startTagMatches.attrs);
+          continue;
+        }
+        var endTagMatches = html.match(endTag);
+        if (endTagMatches) {
+          advance(endTagMatches[0].length);
+          end(endTagMatches[1]);
+          continue;
+        }
+      }
+      // break;
+      if (textEnd >= 0) {
+        var text = html.substring(0, textEnd);
+        if (text) {
+          chars(text);
+          advance(text.length);
+        }
+        // break;
+      }
+    }
+
+    console.log(html); // Parsing going well if html is null
+    // console.log(root);
+    return root;
+  }
+
+  function getProps(attrs) {
+    var str = '';
+    for (var i = 0; i < attrs.length; i++) {
+      var attr = attrs[i];
+      //style:{"color":"red"}
+      if (attr.name === 'style') {
+        (function () {
+          var obj = {};
+          attr.value.split(';').forEach(function (item) {
+            var _item$split = item.split(':'),
+              _item$split2 = _slicedToArray(_item$split, 2),
+              key = _item$split2[0],
+              value = _item$split2[1];
+            obj[key] = value;
+          });
+          attr.value = obj;
+        })();
+      }
+      str += "".concat(attr.name, ": ").concat(JSON.stringify(attr.value), ",");
+    }
+    return "{".concat(str.slice(0, -1), "}");
+  }
+  var defaultTagRE = /\{\{((?:.|\r?\n)+?)\}\}/g;
+  function gen(child) {
+    if (child.type === 1) {
+      return codeGenerator(child);
+    } else {
+      var text = child.text;
+      if (!defaultTagRE.test(text)) {
+        return "_v(".concat(JSON.stringify(text), ")");
+      } else {
+        var token = [];
+        var match;
+        defaultTagRE.lastIndex = 0;
+        var lastIdx = 0;
+        while (match = defaultTagRE.exec(text)) {
+          var index = match.index;
+          // handle the situation {{name}} hello {{name}}
+          if (index > lastIdx) {
+            token.push(JSON.stringify(text.slice(lastIdx, index)));
+          }
+          token.push("_s(".concat(match[1].trim(), ")"));
+          lastIdx = index + match[0].length;
+        }
+        if (lastIdx < text.length) {
+          token.push(text.slice(lastIdx));
+        }
+        return "_v(".concat(token.join('+'), ")");
+      }
+    }
+  }
+  function getChildren(children) {
+    return children.map(function (child) {
+      return gen(child);
+    }).join(',');
+    // const children = el.children;
+    // console.log("bao",children);
+    // if(children){
+    //     return children.map(child => gen(child)).join(',')
+    // } else {
+    //     // window.alert("children are null")
+    // }
+  }
+
+  function codeGenerator(astTree) {
+    var children = getChildren(astTree.children);
+    var code = "_c('".concat(astTree.tag, "', ").concat(astTree.attrs.length > 0 ? getProps(astTree.attrs) : 'null', "\n    ").concat(astTree.children.length ? ",".concat(children) : '', ")");
+    return code;
+  }
   function compileToFunction(template) {
     // parse template into an AST Tree
+    var astTree = parseHtml(template);
+    console.log(astTree);
 
-    // console.log(template)
+    // Render method
+    console.log(codeGenerator(astTree));
+    // render(){
+    //     return {
+    //         h('div',{id:'app'},h('div',{style:{color:'red'}}), _v(_s(name) + "hello"));
+    //     }
+    // }
   }
 
   function initMixin(Vue) {
@@ -206,7 +444,7 @@
         }
         // console.log(template);
         if (template) {
-          var render = compileToFunction();
+          var render = compileToFunction(template);
           options.render = render;
         }
       }
