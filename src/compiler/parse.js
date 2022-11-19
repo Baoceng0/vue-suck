@@ -9,29 +9,29 @@ const attribute = /^\s*([^\s"'<>\/=]+)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s
 const startTagClose = /^\s*(\/?)>/;
 const defaultTagRe = /\{\{((?:.|\r?\n)+?)\}\}/g;
 
-export function parseHtml(html){
+export function parseHtml(html) {
     const ELEMENT_TYPE = 1;
     const TEXT_TYPE = 3;
     const stack = [];
     let curParent;
     let root;
-    
-    function createASTelement(tag,attrs){
+
+    function createASTelement(tag, attrs) {
         return {
             tag,
-            type:ELEMENT_TYPE,
-            children:[],
+            type: ELEMENT_TYPE,
+            children: [],
             attrs,
-            parent:null
+            parent: null
         };
     }
 
-    function start(tag,attrs){
-        let node = createASTelement(tag,attrs);
-        if(!root){
+    function start(tag, attrs) {
+        let node = createASTelement(tag, attrs);
+        if (!root) {
             root = node;
         }
-        if(curParent){
+        if (curParent) {
             node.parent = curParent;
             curParent.children.push(node);
         }
@@ -39,40 +39,40 @@ export function parseHtml(html){
         curParent = node;
         // console.log(tag,attrs,'begin');
     }
-    function end(tag){
-        let node =stack.pop();
-        curParent = stack[stack.length -1];
+    function end(tag) {
+        let node = stack.pop();
+        curParent = stack[stack.length - 1];
         // console.log(node,'end');
     }
-    function chars(text){
-        text = text.replace(/\s/g,"")
-        text && curParent.children.push({
+    function chars(text) {
+        text = text.replace(/\s/g, '')
+        curParent.children.push({
             type: TEXT_TYPE,
             text,
-            parent:curParent
+            parent: curParent
         })
         // console.log(text,'text');
     }
-    function advance(len){
+    function advance(len) {
         html = html.substring(len);
     }
-    function parseStartTag(){
+    function parseStartTag() {
         const start = html.match(startTagOpen);
-        if(start){
+        if (start) {
             const match = {
                 tagName: start[1], // tag name
-                attrs:[]
+                attrs: []
             }
             advance(start[0].length);
             // console.log(match, html)
             // match all attributes until closeTag
             let attrs, end;
-            while(!(end = html.match(startTagClose)) && (attrs = html.match(attribute))){
+            while (!(end = html.match(startTagClose)) && (attrs = html.match(attribute))) {
                 advance(attrs[0].length);
-                match.attrs.push({name:attrs[1],value:attrs[3] || attrs[4] || attrs[5] || true});
+                match.attrs.push({ name: attrs[1], value: attrs[3] || attrs[4] || attrs[5] || true });
             }
 
-            if(end){
+            if (end) {
                 advance(end[0].length);
             }
             // console.log(match)
@@ -80,38 +80,37 @@ export function parseHtml(html){
         }
 
 
-        return false;   
+        return false;
     }
 
-    while(html){
+    while (html) {
         let textEnd = html.indexOf('<') // if idx == 0, it starts at tag, else it is the end of text
 
-        if(textEnd == 0){
+        if (textEnd == 0) {
             const startTagMatches = parseStartTag();
-            console.log(startTagMatches);
-            if(startTagMatches){
-                start(startTagMatches.tagName,startTagMatches.attrs);
+            if (startTagMatches) {
+                start(startTagMatches.tagName, startTagMatches.attrs);
                 continue;
             }
 
             let endTagMatches = html.match(endTag);
-            if(endTagMatches){
+            if (endTagMatches) {
                 advance(endTagMatches[0].length);
                 end(endTagMatches[1]);
                 continue;
             }
         }
         // break;
-        if(textEnd >= 0){
-            let text = html.substring(0,textEnd);
-            if(text){
+        if (textEnd > 0) {
+            let text = html.substring(0, textEnd);
+            if (text) {
                 chars(text);
                 advance(text.length);
             }
             // break;
         }
     }
-    console.log(html);// Parsing going well if html is null
+    // console.log(html);// Parsing going well if html is null
     // console.log(root);
     return root;
 }

@@ -59,13 +59,6 @@ function gen(child) {
 
 function getChildren(children) {
     return children.map(child => gen(child)).join(',')
-    // const children = el.children;
-    // console.log("bao",children);
-    // if(children){
-    //     return children.map(child => gen(child)).join(',')
-    // } else {
-    //     // window.alert("children are null")
-    // }
 }
 
 function codeGenerator(astTree) {
@@ -79,13 +72,15 @@ function codeGenerator(astTree) {
 export function compileToFunction(template) {
     // parse template into an AST Tree
     let astTree = parseHtml(template);
-    console.log(astTree);
+    console.log("astTree", astTree);
 
     // Render method
-    console.log(codeGenerator(astTree));
-    // render(){
-    //     return {
-    //         h('div',{id:'app'},h('div',{style:{color:'red'}}), _v(_s(name) + "hello"));
-    //     }
-    // }
+    // console.log(codeGenerator(astTree));
+
+    // Essence of template engine is 'with()' plus new Function
+    let code = codeGenerator(astTree);
+    code = `with(this){return ${code}}`;
+    let render = new Function(code);
+    // console.log(render.toString())
+    return render;
 }

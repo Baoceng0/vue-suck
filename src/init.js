@@ -1,14 +1,11 @@
 import { initState } from "./state";
 import { compileToFunction } from "./compiler/index";
+import { mountComponent } from "./lifecycle";
 export function initMixin(Vue){
     Vue.prototype._init = function(options){
         const vm = this;
         vm.$options = options;
-        // console.log("3");
-        // state initalizing...
         initState(vm);
-        // console.log("2");
-        // mount element
         if(options.el){
             console.log("1");
             vm.$mount(options.el);
@@ -30,12 +27,13 @@ export function initMixin(Vue){
                 }
             }
             // console.log(template);
-            if(template){
+            if(template && el){
                 const render = compileToFunction(template);
                 options.render = render;
             }
         }
-        options.render;
+        // console.log(options.render);
+        mountComponent(vm, el);
     }
 }
 

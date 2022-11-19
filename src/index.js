@@ -1,4 +1,5 @@
 import { initMixin } from "./init"
+import { initLicycle } from "./lifecycle" 
 
 function Vue(options) {
     // debugger
@@ -6,6 +7,7 @@ function Vue(options) {
 }
 
 initMixin(Vue)
+initLicycle(Vue)
 
 
 

@@ -259,8 +259,8 @@
     }
 
     function chars(text) {
-      text = text.replace(/\s/g, "");
-      text && curParent.children.push({
+      text = text.replace(/\s/g, '');
+      curParent.children.push({
         type: TEXT_TYPE,
         text: text,
         parent: curParent
@@ -303,7 +303,6 @@
 
       if (textEnd == 0) {
         var startTagMatches = parseStartTag();
-        console.log(startTagMatches);
         if (startTagMatches) {
           start(startTagMatches.tagName, startTagMatches.attrs);
           continue;
@@ -316,7 +315,7 @@
         }
       }
       // break;
-      if (textEnd >= 0) {
+      if (textEnd > 0) {
         var text = html.substring(0, textEnd);
         if (text) {
           chars(text);
@@ -325,8 +324,7 @@
         // break;
       }
     }
-
-    console.log(html); // Parsing going well if html is null
+    // console.log(html);// Parsing going well if html is null
     // console.log(root);
     return root;
   }
@@ -386,15 +384,7 @@
     return children.map(function (child) {
       return gen(child);
     }).join(',');
-    // const children = el.children;
-    // console.log("bao",children);
-    // if(children){
-    //     return children.map(child => gen(child)).join(',')
-    // } else {
-    //     // window.alert("children are null")
-    // }
   }
-
   function codeGenerator(astTree) {
     var children = getChildren(astTree.children);
     var code = "_c('".concat(astTree.tag, "', ").concat(astTree.attrs.length > 0 ? getProps(astTree.attrs) : 'null', "\n    ").concat(astTree.children.length ? ",".concat(children) : '', ")");
@@ -403,26 +393,133 @@
   function compileToFunction(template) {
     // parse template into an AST Tree
     var astTree = parseHtml(template);
-    console.log(astTree);
+    console.log("astTree", astTree);
 
     // Render method
-    console.log(codeGenerator(astTree));
-    // render(){
-    //     return {
-    //         h('div',{id:'app'},h('div',{style:{color:'red'}}), _v(_s(name) + "hello"));
-    //     }
-    // }
+    // console.log(codeGenerator(astTree));
+
+    // Essence of template engine is 'with()' plus new Function
+    var code = codeGenerator(astTree);
+    code = "with(this){return ".concat(code, "}");
+    var render = new Function(code);
+    // console.log(render.toString())
+    return render;
+  }
+
+  function createElement(vm, tag, data) {
+    if (data == null) {
+      data = {};
+    }
+    var key = data.key;
+    if (key) {
+      delete data.key;
+    }
+    for (var _len = arguments.length, children = new Array(_len > 3 ? _len - 3 : 0), _key = 3; _key < _len; _key++) {
+      children[_key - 3] = arguments[_key];
+    }
+    return vnode(vm, tag, key, data, children);
+  }
+  function createTextVNode(vm, text) {
+    return vnode(vm, undefined, undefined, undefined, undefined, text);
+  }
+  function vnode(vm, tag, key, data, children, text) {
+    return {
+      vm: vm,
+      tag: tag,
+      key: key,
+      data: data,
+      children: children,
+      text: text
+    };
+  }
+
+  function patchProps(el, props) {
+    for (var key in props) {
+      if (key === 'style') {
+        for (var styleName in props.style) {
+          el.style[styleName] = props.style[styleName];
+        }
+      } else {
+        el.setAttribute(key, props[key]);
+      }
+    }
+  }
+  function createElm(vnode) {
+    var _vnode = _slicedToArray(vnode, 4),
+      tag = _vnode[0],
+      data = _vnode[1],
+      children = _vnode[2],
+      text = _vnode[3];
+    console.log("data", data);
+    if (typeof tag === 'string') {
+      vnode.el = document.createElement(tag); // mount real element onto vnode
+
+      patchProps(vnode.el, data);
+      children.forEach(function (child) {
+        vnode.el.appendChild(createElm(child));
+      });
+    } else {
+      vnode.el = document.createTextNode(text);
+    }
+    return vnode.el;
+  }
+  function patch(oldVnode, newVnode) {
+    console.log("oldVnode", oldVnode);
+    // first time 
+    var isRealEl = oldVnode.type;
+    console.log("isRealEl", isRealEl);
+    if (isRealEl) {
+      console.log("new", newVnode);
+      var elm = oldVnode;
+      var parentElm = elm.parentNode;
+      var newElm = createElm(newVnode);
+      parentElm.insertBefore(newElm, elm.nextSibling);
+      parentElm.removeChild(elm);
+      return newElm;
+    }
+  }
+  function initLicycle(Vue) {
+    Vue.prototype._update = function (vnode) {
+      var vm = this;
+      var el = vm.$el;
+      console.log("update", vnode);
+      // console.log(el);
+
+      // initialize and update DOM
+      // vnode -> dom
+      vm.$el = patch(vnode, el);
+      console.log('el', el);
+    };
+    Vue.prototype._c = function () {
+      return createElement.apply(void 0, [this].concat(Array.prototype.slice.call(arguments)));
+    };
+    Vue.prototype._v = function () {
+      return createTextVNode.apply(void 0, [this].concat(Array.prototype.slice.call(arguments)));
+    };
+    Vue.prototype._s = function (value) {
+      if (_typeof(value) !== 'object') return value;
+      return JSON.stringify(value);
+    };
+    Vue.prototype._render = function () {
+      var vm = this;
+      return vm.$options.render.call(vm);
+    };
+  }
+  function mountComponent(vm, el) {
+    vm.$el = el;
+
+    //1 create Vnode by render()
+    vm._update(vm._render());
+
+    //2 VDOM -> DOM
+    //3 insert DOM into el
   }
 
   function initMixin(Vue) {
     Vue.prototype._init = function (options) {
       var vm = this;
       vm.$options = options;
-      // console.log("3");
-      // state initalizing...
       initState(vm);
-      // console.log("2");
-      // mount element
       if (options.el) {
         console.log("1");
         vm.$mount(options.el);
@@ -443,12 +540,13 @@
           }
         }
         // console.log(template);
-        if (template) {
+        if (template && el) {
           var render = compileToFunction(template);
           options.render = render;
         }
       }
-      options.render;
+      // console.log(options.render);
+      mountComponent(vm, el);
     };
   }
 
@@ -457,6 +555,7 @@
     this._init(options);
   }
   initMixin(Vue);
+  initLicycle(Vue);
 
   return Vue;
 
