@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <div id="app" style="color:red;background:yellow">
+        {{fullname}}  {{fullname}}  {{fullname}}
+    </div>
+    <!-- <script src="vue.js"></script> -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/vue/2.6.14/vue.js"></script>
+    <script>
+        // compute essence
+        // watch essence
+        // reactive
+        const vm = new Vue({
+            el: '#app',
+            data: {
+                firstname: 'z',
+                lastname: 'f',
+                age: 13
+            },
+            computed: {
+                // defineProperty get/set
+                // fullname(){
+                //     return this.firstname + this.lastname;
+                // }
+                fullname: {
+                    get() {
+
+                        // if value has not changed, get() runs only one time
+                        console.log('run');
+                        return this.firstname + this.lastname;
+                    },
+                    set(newVal) {
+                        console.log(newVal);
+                    }
+                }
+            }
+        })
+
+        setTimeout(() => {
+            vm.firstname = 'xxx';
+        },1000);
+    </script>
+</body>
+
+</html>

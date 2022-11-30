@@ -1,8 +1,23 @@
-import { createElement, createTextVNode } from "./vdom";
+import { createElementVNode, createTextVNode } from "./vdom"
+import Watcher from "./observe/watcher";
 
+
+function createElm(vnode) {
+    let { tag, data, children, text } = vnode;
+    if (typeof tag === 'string') { // 标签
+        vnode.el = document.createElement(tag); // 这里将真实节点和虚拟节点对应起来，后续如果修改属性了
+        patchProps(vnode.el, data);
+        children.forEach(child => {
+            vnode.el.appendChild(createElm(child))
+        });
+    } else {
+        vnode.el = document.createTextNode(text)
+    }
+    return vnode.el
+}
 function patchProps(el, props) {
     for (let key in props) {
-        if (key === 'style') {
+        if (key === 'style') { // style{color:'red'}
             for (let styleName in props.style) {
                 el.style[styleName] = props.style[styleName];
             }
@@ -11,82 +26,79 @@ function patchProps(el, props) {
         }
     }
 }
-
-function createElm(vnode) {
-    let [tag, data, children, text] = vnode;
-    console.log("data",data);
-    if (typeof tag === 'string') {
-        vnode.el = document.createElement(tag); // mount real element onto vnode
-
-        patchProps(vnode.el, data);
-
-        children.forEach(child => {
-            vnode.el.appendChild(createElm(child));
-        });
-    } else {
-        vnode.el = document.createTextNode(text);
-    }
-    return vnode.el;
-}
-
-function patch(oldVnode, newVnode) {
-    console.log("oldVnode", oldVnode);
-    // first time 
-    const isRealEl = oldVnode.type;
-    console.log("isRealEl", isRealEl);
-    if (isRealEl) {
-        console.log("new", newVnode);
-        const elm = oldVnode;
-
-        const parentElm = elm.parentNode;
-
-        let newElm = createElm(newVnode);
-
+function patch(oldVNode, vnode) {
+    // 写的是初渲染流程 
+    const isRealElement = oldVNode.nodeType;
+    if (isRealElement) {
+        const elm = oldVNode; // 获取真实元素
+        const parentElm = elm.parentNode; // 拿到父元素
+        let newElm = createElm(vnode);
         parentElm.insertBefore(newElm, elm.nextSibling);
+        parentElm.removeChild(elm); // 删除老节点
 
-        parentElm.removeChild(elm);
-
-        return newElm;
+        return newElm
     } else {
-        // diff algorithm 
+        // diff算法
     }
-
 }
 
-export function initLicycle(Vue) {
-    Vue.prototype._update = function (vnode) {
+
+export function initLifeCycle(Vue) {
+    Vue.prototype._update = function (vnode) { // 将vnode转化成真实dom
         const vm = this;
         const el = vm.$el;
-        console.log("update", vnode);
-        // console.log(el);
 
-        // initialize and update DOM
-        // vnode -> dom
-        vm.$el = patch(vnode, el);
-        console.log('el', el);
+        // patch既有初始化的功能  又有更新 
+        vm.$el = patch(el, vnode);
+    }
 
-    };
+    // _c('div',{},...children)
     Vue.prototype._c = function () {
-        return createElement(this, ...arguments);
-    };
+        return createElementVNode(this, ...arguments)
+    }
+    // _v(text)
     Vue.prototype._v = function () {
-        return createTextVNode(this, ...arguments);
-    };
+        return createTextVNode(this, ...arguments)
+    }
     Vue.prototype._s = function (value) {
-        if (typeof value !== 'object') return value;
-        return JSON.stringify(value);
-    };
+        if (typeof value !== 'object') return value
+        return JSON.stringify(value)
+    }
     Vue.prototype._render = function () {
-        const vm = this;
-        return vm.$options.render.call(vm);
+        // 当渲染的时候会去实例中取值，我们就可以将属性和视图绑定在一起
+
+        return this.$options.render.call(this); // 通过ast语法转义后生成的render方法
     }
 }
-export function mountComponent(vm, el) {
-    vm.$el = el
 
-    //1 create Vnode by render()
-    vm._update(vm._render())
+export function mountComponent(vm, el) { // 这里的el 是通过querySelector处理过的
+    vm.$el = el;
+    // 1.调用render方法产生虚拟节点 虚拟DOM
 
-    //2 VDOM -> DOM
-    //3 insert DOM into el
+    const updateComponent = () => {
+        vm._update(vm._render()); // vm.$options.render() 虚拟节点
+    }
+
+
+    let watcher = new Watcher(vm, updateComponent, true);
+    console.log(watcher);
+    // 2.根据虚拟DOM产生真实DOM 
+
+    // 3.插入到el元素中
+
 }
+// vue核心流程 1） 创造了响应式数据  2） 模板转换成ast语法树  
+// 3) 将ast语法树转换了render函数 4) 后续每次数据更新可以只执行render函数 (无需再次执行ast转化的过程)
+// render函数会去产生虚拟节点（使用响应式数据）
+// 根据生成的虚拟节点创造真实的DOM
+
+
+
+
+export function callHook(vm, hook) {
+    const handlers = vm.$options[hook];
+    if (handlers) {
+        handlers.forEach(handler => handler.call(vm));
+    }
+}
+
